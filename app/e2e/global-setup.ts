@@ -98,15 +98,26 @@ function stopPid(pid: number) {
   }
 }
 
+/** Resolve a Python that can run `python -m kids_agent`. */
+function resolvePython(): string {
+  const fromEnv = process.env.KDA_PYTHON?.trim();
+  if (fromEnv && fs.existsSync(fromEnv)) return fromEnv;
+
+  const venvPy =
+    process.platform === "win32"
+      ? path.join(backend, ".venv", "Scripts", "python.exe")
+      : path.join(backend, ".venv", "bin", "python");
+  if (fs.existsSync(venvPy)) return venvPy;
+
+  // CI (actions/setup-python) and systems without a local .venv
+  return process.platform === "win32" ? "python" : "python3";
+}
+
 export default async function globalSetup() {
   fs.mkdirSync(fixtureDir, { recursive: true });
   fs.writeFileSync(cfgPath, JSON.stringify(config, null, 2));
 
-  const py =
-    process.platform === "win32"
-      ? path.join(backend, ".venv", "Scripts", "python.exe")
-      : path.join(backend, ".venv", "bin", "python");
-
+  const py = resolvePython();
   const child: ChildProcess = spawn(py, ["-m", "kids_agent"], {
     cwd: backend,
     env: {
@@ -120,15 +131,27 @@ export default async function globalSetup() {
     windowsHide: true,
   });
 
-  if (!child.pid) {
-    throw new Error("Failed to start kids_agent for Playwright e2e");
-  }
+  await new Promise<void>((resolve, reject) => {
+    child.once("error", (err) => {
+      reject(new Error(`Failed to start kids_agent (${py}): ${err.message}`));
+    });
+    // Spawn succeeded enough to get a pid (or will emit error shortly).
+    if (child.pid) resolve();
+    else {
+      // Give the error event a tick on Windows ENOENT before failing.
+      setTimeout(() => {
+        if (child.pid) resolve();
+        else reject(new Error(`Failed to start kids_agent for Playwright e2e (${py})`));
+      }, 100);
+    }
+  });
+
   fs.writeFileSync(pidPath, String(child.pid));
 
   try {
     await waitPort(WS_PORT);
   } catch (err) {
-    stopPid(child.pid);
+    stopPid(child.pid!);
     throw err;
   }
 

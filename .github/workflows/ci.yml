@@ -54,6 +54,7 @@ jobs:
           cache-dependency-path: app/package-lock.json
 
       - name: Set up Python for e2e backend
+        id: python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -82,4 +83,7 @@ jobs:
 
       - name: Run UI e2e tests
         working-directory: app
+        env:
+          # setup-python puts Python on PATH; no local .venv in CI.
+          KDA_PYTHON: ${{ steps.python.outputs.python-path }}
         run: npm run test:e2e
