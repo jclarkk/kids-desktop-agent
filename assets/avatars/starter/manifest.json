@@ -1,0 +1,175 @@
+{
+  "id": "starter",
+  "name": "Starter Pack",
+  "license": "MIT",
+  "characters": [
+    {
+      "id": "sparky",
+      "name": "Sparky",
+      "description": "A friendly little star helper.",
+      "genders": ["boy", "girl", "neutral"],
+      "default_gender": "neutral",
+      "palette": { "primary": "#F4C95F", "secondary": "#3A8FB7" },
+      "voices": {
+        "boy": "am_michael",
+        "girl": "af_heart",
+        "neutral": "af_bella"
+      },
+      "states": ["idle", "listening", "thinking", "speaking"]
+    },
+    {
+      "id": "pixel",
+      "name": "Pixel",
+      "description": "A curious robot buddy.",
+      "genders": ["boy", "girl", "neutral"],
+      "default_gender": "boy",
+      "palette": { "primary": "#6BCF7F", "secondary": "#2F4858" },
+      "voices": {
+        "boy": "am_fenrir",
+        "girl": "af_bella",
+        "neutral": "am_puck"
+      },
+      "states": ["idle", "listening", "thinking", "speaking"]
+    },
+    {
+      "id": "luna",
+      "name": "Luna",
+      "description": "A gentle moon guide.",
+      "genders": ["boy", "girl", "neutral"],
+      "default_gender": "girl",
+      "palette": { "primary": "#C9B6FF", "secondary": "#4A3F6B" },
+      "voices": {
+        "boy": "am_echo",
+        "girl": "af_nova",
+        "neutral": "af_sky"
+      },
+      "states": ["idle", "listening", "thinking", "speaking"]
+    },
+    {
+      "id": "rosie",
+      "name": "Rosie",
+      "description": "A kind princess with a golden crown.",
+      "genders": ["boy", "girl", "neutral"],
+      "default_gender": "girl",
+      "palette": { "primary": "#F7A8C4", "secondary": "#E8C45A" },
+      "voices": {
+        "boy": "am_liam",
+        "girl": "af_sarah",
+        "neutral": "af_nova"
+      },
+      "states": ["idle", "listening", "thinking", "speaking"]
+    },
+    {
+      "id": "blaze",
+      "name": "Blaze",
+      "description": "A brave super hero with a red cape.",
+      "genders": ["boy", "girl", "neutral"],
+      "default_gender": "boy",
+      "palette": { "primary": "#4C7DE0", "secondary": "#E2643B" },
+      "voices": {
+        "boy": "am_onyx",
+        "girl": "af_jessica",
+        "neutral": "am_adam"
+      },
+      "states": ["idle", "listening", "thinking", "speaking"]
+    },
+    {
+      "id": "sparkle",
+      "name": "Sparkle",
+      "description": "A magical unicorn friend.",
+      "genders": ["boy", "girl", "neutral"],
+      "default_gender": "neutral",
+      "palette": { "primary": "#F3EDFF", "secondary": "#B87FD9" },
+      "voices": {
+        "boy": "am_echo",
+        "girl": "af_aoede",
+        "neutral": "af_sky"
+      },
+      "states": ["idle", "listening", "thinking", "speaking"]
+    },
+    {
+      "id": "astro",
+      "name": "Astro",
+      "description": "A space explorer in a shiny helmet.",
+      "genders": ["boy", "girl", "neutral"],
+      "default_gender": "neutral",
+      "palette": { "primary": "#EAF2F8", "secondary": "#E2833B" },
+      "voices": {
+        "boy": "am_eric",
+        "girl": "af_kore",
+        "neutral": "af_alloy"
+      },
+      "states": ["idle", "listening", "thinking", "speaking"]
+    },
+    {
+      "id": "finn",
+      "name": "Finn",
+      "description": "A jolly pirate with a parrot pal.",
+      "genders": ["boy", "girl", "neutral"],
+      "default_gender": "boy",
+      "palette": { "primary": "#D8544F", "secondary": "#F4C95F" },
+      "voices": {
+        "boy": "am_santa",
+        "girl": "af_river",
+        "neutral": "am_eric"
+      },
+      "states": ["idle", "listening", "thinking", "speaking"]
+    },
+    {
+      "id": "flora",
+      "name": "Flora",
+      "description": "A flower fairy with sparkly wings.",
+      "genders": ["boy", "girl", "neutral"],
+      "default_gender": "girl",
+      "palette": { "primary": "#B5E48C", "secondary": "#F7A8C4" },
+      "voices": {
+        "boy": "am_liam",
+        "girl": "af_nicole",
+        "neutral": "af_kore"
+      },
+      "states": ["idle", "listening", "thinking", "speaking"]
+    },
+    {
+      "id": "rex",
+      "name": "Rex",
+      "description": "A friendly little dinosaur.",
+      "genders": ["boy", "girl", "neutral"],
+      "default_gender": "boy",
+      "palette": { "primary": "#6BCF7F", "secondary": "#2F8F46" },
+      "voices": {
+        "boy": "am_fenrir",
+        "girl": "af_bella",
+        "neutral": "am_puck"
+      },
+      "states": ["idle", "listening", "thinking", "speaking"]
+    },
+    {
+      "id": "marina",
+      "name": "Marina",
+      "description": "A singing mermaid from the big blue sea.",
+      "genders": ["boy", "girl", "neutral"],
+      "default_gender": "girl",
+      "palette": { "primary": "#7FD1E8", "secondary": "#B87FD9" },
+      "voices": {
+        "boy": "am_echo",
+        "girl": "af_river",
+        "neutral": "af_sky"
+      },
+      "states": ["idle", "listening", "thinking", "speaking"]
+    },
+    {
+      "id": "ember",
+      "name": "Ember",
+      "description": "A tiny dragon with a warm heart.",
+      "genders": ["boy", "girl", "neutral"],
+      "default_gender": "neutral",
+      "palette": { "primary": "#F2925C", "secondary": "#8F3B2F" },
+      "voices": {
+        "boy": "am_puck",
+        "girl": "af_heart",
+        "neutral": "am_adam"
+      },
+      "states": ["idle", "listening", "thinking", "speaking"]
+    }
+  ]
+}

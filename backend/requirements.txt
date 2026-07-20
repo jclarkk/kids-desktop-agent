@@ -1,0 +1,7 @@
+websockets>=14.0
+httpx>=0.28.0
+pydantic>=2.10.0
+python-dotenv>=1.0.0
+numpy>=2.0.0
+sounddevice>=0.5.1
+Pillow>=10.0.0

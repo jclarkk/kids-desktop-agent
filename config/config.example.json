@@ -1,0 +1,117 @@
+{
+  "parent_pin": "1234",
+  "ai_mode": "cloud",
+  "websocket": {
+    "host": "127.0.0.1",
+    "port": 8765
+  },
+  "cloud": {
+    "provider": "openrouter",
+    "api_key": "",
+    "base_url": "https://openrouter.ai/api/v1",
+    "chat_model": "google/gemini-2.5-flash",
+    "stt_provider": "openai_compatible",
+    "tts": "local_kokoro",
+    "daily_budget_usd": 2.0,
+    "presets": {
+      "cheapest": "openrouter/auto",
+      "balanced_tools": "google/gemini-2.5-flash",
+      "openai_mini": "openai/gpt-4o-mini",
+      "free_tier": "openrouter/free"
+    }
+  },
+  "local": {
+    "llm_runtime": "ollama",
+    "llm_model": "qwen2.5:14b-instruct-q4_K_M",
+    "ollama_base_url": "http://127.0.0.1:11434",
+    "gpu_layers": "auto",
+    "allow_offload": true,
+    "stt_model": "small",
+    "tts_voice_male": "am_michael",
+    "tts_voice_female": "af_heart",
+    "tts_voice_neutral": "af_bella"
+  },
+  "avatar": {
+    "pack_id": "starter",
+    "character_id": "sparky",
+    "gender": "neutral",
+    "wake_word": "Hey Sparky"
+  },
+  "kids": [
+    {
+      "id": "kid4",
+      "name": "Little One",
+      "age": 4,
+      "preferred_avatar": "sparky",
+      "preferred_gender": "neutral",
+      "daily_limit_minutes": 45,
+      "english_level": "beginner",
+      "onboarding_complete": true
+    },
+    {
+      "id": "kid7",
+      "name": "Big Kid",
+      "age": 7,
+      "preferred_avatar": "pixel",
+      "preferred_gender": "boy",
+      "daily_limit_minutes": 60,
+      "english_level": "elementary",
+      "onboarding_complete": true
+    }
+  ],
+  "active_kid_id": "kid7",
+  "allowlist": {
+    "apps": [
+      {
+        "id": "notepad",
+        "label": "Notepad / TextEdit",
+        "windows": { "command": "notepad.exe" },
+        "macos": { "command": "open", "args": ["-a", "TextEdit"] }
+      },
+      {
+        "id": "calculator",
+        "label": "Calculator",
+        "windows": { "command": "calc.exe" },
+        "macos": { "command": "open", "args": ["-a", "Calculator"] }
+      }
+    ],
+    "websites": [
+      {
+        "id": "wikipedia_kids",
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/"
+      }
+    ],
+    "skills_enabled": [
+      "open_app",
+      "open_website",
+      "set_volume",
+      "start_timer",
+      "list_windows"
+    ]
+  },
+  "computer_use": {
+    "mode": "off",
+    "session_ttl_minutes": 15,
+    "vision_max_side": 1280,
+    "vision_jpeg_quality": 75,
+    "max_agent_steps": 6
+  },
+  "safety": {
+    "log_transcripts": true,
+    "transcript_retention_days": 14,
+    "content_strictness": "strict"
+  },
+  "identity": {
+    "require_who_is_playing": true,
+    "voice_name_match": true,
+    "face_match": true,
+    "face_match_threshold": 14,
+    "allow_tap_select": true
+  },
+  "audio": {
+    "sample_rate": 16000,
+    "wake_word_enabled": false,
+    "barge_in": true
+  }
+}

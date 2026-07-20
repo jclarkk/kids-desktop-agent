@@ -1,0 +1,23 @@
+# Optional speech deps (parent-installer component group: speech)
+# Canonical catalog: docs/installer-components.json + docs/INSTALLER_OPTIONAL_COMPONENTS.md
+#
+# Install:
+#   pip install -r requirements-optional.txt
+#
+# Maps to installer ids:
+#   kokoro_tts          → kokoro + soundfile + misaki[en]   (recommended)
+#   faster_whisper_stt  → faster-whisper                    (optional / pre-install)
+#
+# System helper (installer id: espeak_ng), optional with Kokoro:
+#   Windows: winget install eSpeak-NG
+#   macOS:   brew install espeak
+#   Linux:   sudo apt install espeak-ng
+
+# --- kokoro_tts ---
+# Requires Python >=3.10,<3.13 (no wheels for 3.13 yet). Use a 3.12 venv for natural voices.
+kokoro>=0.9.4
+soundfile>=0.12.0
+misaki[en]>=0.4.0
+
+# --- faster_whisper_stt ---
+faster-whisper>=1.1.0

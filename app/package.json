@@ -1,0 +1,78 @@
+{
+  "name": "kids-desktop-agent-app",
+  "version": "0.1.0",
+  "private": true,
+  "author": "Kids Desktop Agent contributors",
+  "description": "Kids Desktop Agent avatar UI",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jclarkk/kids-desktop-agent.git"
+  },
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on http://127.0.0.1:5173 && electron .\"",
+    "dev:vite": "vite",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "vite build",
+    "dist:win": "npm run build && electron-builder --win nsis",
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium"
+  },
+  "dependencies": {
+    "@fontsource/nunito": "^5.2.7",
+    "electron-updater": "^6.8.9",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.kidsdesktopagent.app",
+    "productName": "Kids Desktop Agent",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/dist/kids_agent",
+        "to": "backend/kids_agent"
+      },
+      {
+        "from": "../assets",
+        "to": "assets"
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "jclarkk",
+        "repo": "kids-desktop-agent"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

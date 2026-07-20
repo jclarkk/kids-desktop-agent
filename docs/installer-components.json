@@ -1,0 +1,170 @@
+{
+  "$schema_comment": "Canonical list of installable components for a future parent-facing installer. Keep in sync with requirements*.txt and README. Do not offer dev-only packages to parents.",
+  "version": 1,
+  "core": {
+    "id": "core",
+    "parent_label": "Kids Desktop Agent (required)",
+    "parent_summary": "Avatar app + backend. Works with cloud AI and browser voices/mic.",
+    "default_selected": true,
+    "required": true,
+    "install": {
+      "pip_requirements": ["backend/requirements.txt"],
+      "app": ["app npm dependencies / packaged Electron build"],
+      "notes": "Always installed. No large model downloads by itself."
+    }
+  },
+  "components": [
+    {
+      "id": "kokoro_tts",
+      "group": "speech",
+      "parent_label": "Natural voices (Kokoro)",
+      "parent_summary": "Friendly neural speech so the avatar sounds less robotic. Recommended.",
+      "default_selected": true,
+      "recommended": true,
+      "approx_size": "~300MB model download on first use (+ pip packages)",
+      "needs_network_at_install": true,
+      "needs_network_at_first_run": true,
+      "python_requires": ">=3.10,<3.13",
+      "fallback_if_skipped": "Enhanced browser / OS neural voices",
+      "detect": {
+        "python_import": "kokoro",
+        "runtime_probe": "kids_agent.tts.kokoro_available()"
+      },
+      "install": {
+        "pip": ["kokoro>=0.9.4", "soundfile>=0.12.0", "misaki[en]>=0.4.0"],
+        "pip_requirements_file": "backend/requirements-optional.txt",
+        "notes": "If the machine only has Python 3.13+, install/bundled runtime must be 3.12 when kokoro_tts is selected.",
+        "system_optional": [
+          {
+            "id": "espeak_ng",
+            "why": "Helps Kokoro pronounce some words; often optional on Windows",
+            "windows": "winget install eSpeak-NG",
+            "macos": "brew install espeak",
+            "linux": "sudo apt install espeak-ng"
+          }
+        ]
+      },
+      "config_hooks": {
+        "cloud.tts": "local_kokoro",
+        "local.tts_voice_*": "avatar manifest voice ids (af_heart, am_adam, …)"
+      }
+    },
+    {
+      "id": "faster_whisper_stt",
+      "group": "speech",
+      "parent_label": "Private speech recognition (faster-whisper)",
+      "parent_summary": "Understand the child’s speech on this PC instead of relying only on the browser. Optional; larger download.",
+      "default_selected": false,
+      "recommended": false,
+      "approx_size": "Model size depends on choice (tiny→large); often hundreds of MB",
+      "needs_network_at_first_run": true,
+      "fallback_if_skipped": "Browser Web Speech API (SpeechRecognition)",
+      "detect": {
+        "python_import": "faster_whisper",
+        "runtime_probe": "kids_agent.speech.probe_speech_capabilities().stt == 'faster_whisper'"
+      },
+      "install": {
+        "pip": ["faster-whisper>=1.1.0"],
+        "pip_requirements_file": "backend/requirements-optional.txt",
+        "notes": "Not fully wired as the default STT path yet; still offer in installer so parents can pre-install for upcoming local STT."
+      },
+      "status": "packaged_optional_partially_wired"
+    },
+    {
+      "id": "ollama_local_llm",
+      "group": "local_ai",
+      "parent_label": "Local AI brain (Ollama)",
+      "parent_summary": "Run the tutor on this computer with no cloud API key. Needs disk space and a decent PC/Mac.",
+      "default_selected": false,
+      "recommended": false,
+      "approx_size": "Ollama app + model (e.g. 4–8GB+ for a 7B model)",
+      "needs_network_at_install": true,
+      "fallback_if_skipped": "Cloud / hybrid mode with parent API key",
+      "detect": {
+        "http": "http://127.0.0.1:11434/api/tags",
+        "runtime_probe": "hardware.ollama_ok"
+      },
+      "install": {
+        "external_app": {
+          "name": "Ollama",
+          "url": "https://ollama.com",
+          "after_install_commands": [
+            "ollama pull qwen2.5:7b-instruct"
+          ],
+          "catalog": "backend/kids_agent/model_catalog.py — offer VRAM-appropriate default"
+        }
+      },
+      "config_hooks": {
+        "ai_mode": "local or hybrid",
+        "local.ollama_base_url": "http://127.0.0.1:11434"
+      }
+    },
+    {
+      "id": "cloud_api_key",
+      "group": "cloud_ai",
+      "parent_label": "Cloud AI (API key)",
+      "parent_summary": "Smart replies via OpenRouter / OpenAI / Gemini. Uses the internet; set a daily budget.",
+      "default_selected": true,
+      "recommended": true,
+      "approx_size": "0 (credentials only)",
+      "needs_network_at_runtime": true,
+      "fallback_if_skipped": "Local Ollama mode only",
+      "detect": {
+        "config": "cloud.api_key or env KDA_API_KEY"
+      },
+      "install": {
+        "type": "credential_prompt",
+        "providers": ["openrouter", "openai", "gemini-compatible"],
+        "config_keys": ["cloud.provider", "cloud.api_key", "cloud.base_url", "cloud.chat_model", "cloud.daily_budget_usd"]
+      },
+      "notes": "Not a pip package — installer step to collect/store key in config.local.json (never commit)."
+    },
+    {
+      "id": "wake_word",
+      "group": "speech",
+      "parent_label": "Wake word (“Hey Sparky”)",
+      "parent_summary": "Call the avatar by name hands-free. Coming soon — reserve space in the installer UI.",
+      "default_selected": false,
+      "recommended": false,
+      "status": "planned_not_wired",
+      "approx_size": "TBD (openWakeWord or similar)",
+      "fallback_if_skipped": "Click / hold avatar to talk",
+      "install": {
+        "pip": [],
+        "notes": "Do not install a package yet. When wired, add dependency here and to requirements-optional.txt."
+      },
+      "config_hooks": {
+        "audio.wake_word_enabled": true,
+        "avatar.wake_word": "Hey Sparky"
+      }
+    }
+  ],
+  "required_setup_steps": [
+    {
+      "id": "parent_pin_setup",
+      "parent_label": "Choose a parent PIN",
+      "parent_summary": "Protects grown-up settings and computer-use approval. Required — no default PIN in installed builds.",
+      "notes": "Dev/run-from-source default is 1234 (see README). Installer must collect a PIN (min 4 digits) and store it hashed via set_pin()."
+    }
+  ],
+  "installer_ui_notes": [
+    "Show parent_label + parent_summary; never show raw pip names as the primary text.",
+    "Show approx_size and whether a download happens on first run.",
+    "Core is always on and not uncheckable.",
+    "If kokoro_tts is unchecked, still ship enhanced browser TTS (no extra install).",
+    "Dev packages (pytest, Playwright, requirements-dev.txt) must NOT appear in the parent installer.",
+    "After install, run probe_speech_capabilities() / hardware detect and show a simple Ready checklist."
+  ],
+  "not_for_parent_installer": [
+    {
+      "id": "dev_pytest",
+      "path": "backend/requirements-dev.txt",
+      "reason": "Developer / CI only"
+    },
+    {
+      "id": "dev_playwright",
+      "path": "app e2e / @playwright/test",
+      "reason": "Developer / CI only"
+    }
+  ]
+}
