@@ -15,7 +15,7 @@
     "dev:vite": "vite",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "vite build",
-    "dist:win": "npm run build && electron-builder --win nsis",
+    "dist:win": "npm run build && electron-builder --win nsis --publish never",
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium"
