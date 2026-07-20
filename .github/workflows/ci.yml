@@ -63,11 +63,12 @@ jobs:
             backend/requirements.txt
             backend/requirements-dev.txt
 
-      - name: Install backend dependencies
+      - name: Create venv and install backend dependencies
         working-directory: backend
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt -r requirements-dev.txt
+          python -m venv .venv
+          .\.venv\Scripts\python -m pip install --upgrade pip
+          .\.venv\Scripts\python -m pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Install app dependencies
         working-directory: app
@@ -84,6 +85,6 @@ jobs:
       - name: Run UI e2e tests
         working-directory: app
         env:
-          # setup-python puts Python on PATH; no local .venv in CI.
-          KDA_PYTHON: ${{ steps.python.outputs.python-path }}
+          # Prefer the CI venv; global-setup also falls back to PATH / KDA_PYTHON.
+          KDA_PYTHON: ${{ github.workspace }}\backend\.venv\Scripts\python.exe
         run: npm run test:e2e

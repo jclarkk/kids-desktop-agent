@@ -118,6 +118,8 @@ export default async function globalSetup() {
   fs.writeFileSync(cfgPath, JSON.stringify(config, null, 2));
 
   const py = resolvePython();
+  // Bare commands like "python" need shell lookup on Windows; absolute paths do not.
+  const useShell = process.platform === "win32" && !path.isAbsolute(py);
   const child: ChildProcess = spawn(py, ["-m", "kids_agent"], {
     cwd: backend,
     env: {
@@ -129,6 +131,7 @@ export default async function globalSetup() {
     },
     stdio: "ignore",
     windowsHide: true,
+    shell: useShell,
   });
 
   await new Promise<void>((resolve, reject) => {
