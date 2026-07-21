@@ -506,22 +506,70 @@ class AgentServer:
                 json.dumps({"type": "parent_setup_result", "ok": False, "error": "PIN must be at least 4 digits."})
             )
             return
-        set_pin(self.config, pin)
+
         ai_mode = str(msg.get("ai_mode") or self.config.ai_mode)
-        if ai_mode in ("cloud", "local", "hybrid"):
-            self.config.ai_mode = ai_mode  # type: ignore[assignment]
+        if ai_mode not in ("cloud", "local", "hybrid"):
+            ai_mode = self.config.ai_mode
+        needs_cloud = ai_mode in ("cloud", "hybrid")
+        needs_local = ai_mode in ("local", "hybrid")
+
         api_key = str(msg.get("api_key") or "").strip()
-        if api_key:
+        if needs_cloud and not api_key:
+            await websocket.send(
+                json.dumps(
+                    {
+                        "type": "parent_setup_result",
+                        "ok": False,
+                        "error": "Cloud or hybrid mode needs an API key.",
+                    }
+                )
+            )
+            return
+
+        # Persist only after validation so a rejected attempt does not set the PIN.
+        set_pin(self.config, pin)
+        self.config.ai_mode = ai_mode  # type: ignore[assignment]
+
+        if needs_cloud:
             self.config.cloud.api_key = api_key
+            provider = str(msg.get("provider") or "").strip()
+            if provider:
+                self.config.cloud.provider = provider
+            base_url = str(msg.get("base_url") or "").strip()
+            if base_url:
+                self.config.cloud.base_url = base_url
+            chat_model = str(msg.get("chat_model") or "").strip()
+            if chat_model:
+                self.config.cloud.chat_model = chat_model
+            try:
+                if msg.get("daily_budget_usd") is not None:
+                    self.config.cloud.daily_budget_usd = max(0.0, float(msg["daily_budget_usd"]))
+            except (TypeError, ValueError):
+                pass
+
+        if needs_local:
+            llm_model = str(msg.get("llm_model") or "").strip()
+            if llm_model:
+                self.config.local.llm_model = llm_model
+            ollama_url = str(msg.get("ollama_base_url") or "").strip()
+            if ollama_url:
+                self.config.local.ollama_base_url = ollama_url
+
         try:
-            daily_limit = int(msg.get("daily_limit_minutes", 60))
+            daily_limit = max(15, min(240, int(msg.get("daily_limit_minutes", 60))))
+            self.config.default_daily_limit_minutes = daily_limit
             for kid in self.config.kids:
-                kid.daily_limit_minutes = max(15, min(240, daily_limit))
+                kid.daily_limit_minutes = daily_limit
         except (TypeError, ValueError):
             pass
+
+        # Computer-use stays off until a parent explicitly enables it later.
+        self.config.computer_use.mode = "off"
+
         save_config(self.config)
         self._parent_sessions.add(id(websocket))
         self._rebuild_engine()
+        await self.refresh_hardware()
         await websocket.send(
             json.dumps(
                 {
@@ -620,7 +668,9 @@ class AgentServer:
             age=age,
             preferred_avatar=str(msg.get("preferred_avatar") or "sparky"),
             preferred_gender=gender,
-            daily_limit_minutes=int(msg.get("daily_limit_minutes") or 60),
+            daily_limit_minutes=int(
+                msg.get("daily_limit_minutes") or self.config.default_daily_limit_minutes or 60
+            ),
             english_level=normalize_english_level(msg.get("english_level")),  # type: ignore[arg-type]
             onboarding_complete=True,
             magic_word=str(msg.get("magic_word") or "").strip()[:32],
@@ -952,12 +1002,25 @@ class AgentServer:
             self.config.safety.content_strictness = str(safety["content_strictness"])
 
     def _uses_cloud_llm(self) -> bool:
+        """True when this turn is billed as cloud (actual route, not mode alone)."""
         mode = self.config.ai_mode
         if mode == "local":
             return False
+        route = getattr(self.engine, "last_route", None)
         if mode == "hybrid":
-            return bool(self.config.cloud.api_key)
+            return route == "cloud" and bool(self.config.cloud.api_key)
         return True
+
+    def _engine_used(self) -> str | None:
+        route = getattr(self.engine, "last_route", None)
+        if route in ("local", "cloud"):
+            return str(route)
+        mode = self.config.ai_mode
+        if mode == "local":
+            return "local"
+        if mode == "cloud":
+            return "cloud"
+        return None
 
     async def _reply(
         self,
@@ -1053,7 +1116,9 @@ class AgentServer:
             await websocket.send(json.dumps(self.public_state()))
             return
 
-        if self._uses_cloud_llm() and not self.budget.can_spend():
+        budget_ok = self.budget.can_spend()
+        # Pure cloud mode hard-blocks when over budget. Hybrid falls back to local.
+        if self.config.ai_mode == "cloud" and not budget_ok:
             await self._reply(
                 websocket,
                 user=text,
@@ -1070,6 +1135,9 @@ class AgentServer:
         self._paused_agent = None
 
         prompt = build_system_prompt(self.config, kid)
+        begin_turn = getattr(self.engine, "begin_turn", None)
+        if callable(begin_turn):
+            begin_turn(text, budget_ok=budget_ok)
         dialect = "ollama" if getattr(self.engine, "dialect", lambda: "openai")() == "ollama" else "openai"
 
         async def on_skill(call: Any, skill_result: Any) -> None:
@@ -1100,6 +1168,42 @@ class AgentServer:
             on_skill=on_skill,
         )
 
+        # Hybrid: one automatic cloud retry when local fails and budget allows.
+        # Never retry if tools already ran (avoid repeating desktop actions) or
+        # if the turn is paused waiting for parent PIN approval.
+        if (
+            self.config.ai_mode == "hybrid"
+            and getattr(self.engine, "last_route", None) == "local"
+            and budget_ok
+            and not loop_result.paused_for_approval
+            and not loop_result.tool_calls
+        ):
+            from kids_agent.engines.base import EngineResult
+            from kids_agent.engines.hybrid_policy import should_escalate
+
+            local_probe = EngineResult(
+                assistant_text=loop_result.assistant_text,
+                error=loop_result.error,
+            )
+            if should_escalate(local_probe, config=self.config, budget_ok=budget_ok):
+                force_cloud = getattr(self.engine, "force_cloud", None)
+                if callable(force_cloud):
+                    force_cloud()
+                    dialect = (
+                        "ollama"
+                        if getattr(self.engine, "dialect", lambda: "openai")() == "ollama"
+                        else "openai"
+                    )
+                    loop_result = await run_agent_loop(
+                        engine=self.engine,
+                        skills=self.skills,
+                        system_prompt=prompt,
+                        user_text=text,
+                        max_steps=self.config.computer_use.max_agent_steps,
+                        dialect=dialect,  # type: ignore[arg-type]
+                        on_skill=on_skill,
+                    )
+
         # Estimate: one cloud charge per vision/tool round roughly
         if self._uses_cloud_llm() and not loop_result.error:
             steps = max(1, 1 + loop_result.vision_steps)
@@ -1110,6 +1214,7 @@ class AgentServer:
                 "messages": loop_result.messages,
                 "user_text": text,
                 "dialect": dialect,
+                "route": getattr(self.engine, "last_route", None),
             }
 
         reply = loop_result.assistant_text
@@ -1123,6 +1228,7 @@ class AgentServer:
             extra={
                 "tool_calls": loop_result.tool_calls,
                 "vision_steps": loop_result.vision_steps,
+                "engine_used": self._engine_used(),
             },
         )
         await websocket.send(json.dumps(self.public_state()))
@@ -1147,6 +1253,16 @@ class AgentServer:
         messages: list[dict[str, Any]] = list(paused["messages"])
         dialect = paused.get("dialect") or "openai"
         user_text = str(paused.get("user_text") or "")
+        # Keep the same engine/dialect as the paused turn (hybrid sticky route)
+        stored_route = paused.get("route")
+        if stored_route == "cloud":
+            force_cloud = getattr(self.engine, "force_cloud", None)
+            if callable(force_cloud):
+                force_cloud()
+        elif stored_route == "local":
+            force_local = getattr(self.engine, "force_local", None)
+            if callable(force_local):
+                force_local()
 
         # Replace the last "waiting for PIN" tool stub with the real result if present,
         # otherwise append a fresh tool note + vision user message.
@@ -1211,6 +1327,7 @@ class AgentServer:
                 "messages": loop_result.messages,
                 "user_text": user_text,
                 "dialect": dialect,
+                "route": getattr(self.engine, "last_route", None),
             }
         else:
             self._paused_agent = None
@@ -1228,6 +1345,7 @@ class AgentServer:
             extra={
                 "tool_calls": loop_result.tool_calls,
                 "vision_steps": loop_result.vision_steps,
+                "engine_used": self._engine_used(),
             },
         )
         await self.broadcast(self.public_state())

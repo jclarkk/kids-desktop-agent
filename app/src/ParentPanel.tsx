@@ -15,6 +15,7 @@ export type CatalogItem = {
   ollama: string;
   fit: string;
   notes?: string;
+  vision?: boolean;
   selected_default?: boolean;
 };
 
@@ -136,7 +137,7 @@ export function ParentPanel({
   const [logTranscripts, setLogTranscripts] = useState(true);
   const [contentStrictness, setContentStrictness] = useState("strict");
   const [computerUseWarning, setComputerUseWarning] = useState<"ask" | "session" | null>(null);
-  const [localModel, setLocalModel] = useState("qwen2.5:7b-instruct");
+  const [localModel, setLocalModel] = useState("qwen3.5:9b-q4_K_M");
   const [ollamaUrl, setOllamaUrl] = useState("http://127.0.0.1:11434");
   const [gpuLayers, setGpuLayers] = useState("auto");
   const [allowOffload, setAllowOffload] = useState(true);
@@ -168,7 +169,7 @@ export function ParentPanel({
     setComputerUse(settings.computer_use?.mode || "off");
     setLogTranscripts(settings.safety?.log_transcripts ?? true);
     setContentStrictness(settings.safety?.content_strictness || "strict");
-    setLocalModel(settings.local?.llm_model || "qwen2.5:7b-instruct");
+    setLocalModel(settings.local?.llm_model || "qwen3.5:9b-q4_K_M");
     setOllamaUrl(settings.local?.ollama_base_url || "http://127.0.0.1:11434");
     setGpuLayers(String(settings.local?.gpu_layers ?? "auto"));
     setAllowOffload(settings.local?.allow_offload ?? true);
@@ -287,11 +288,18 @@ export function ParentPanel({
                   <label>
                     AI mode
                     <select value={aiMode} onChange={(e) => setAiMode(e.target.value)}>
-                      <option value="cloud">Cloud (API)</option>
-                      <option value="hybrid">Hybrid (cloud LLM if keyed, else local)</option>
-                      <option value="local">Local (Ollama)</option>
+                      <option value="cloud">Cloud (API — every answer online)</option>
+                      <option value="hybrid">Hybrid (local first, cloud for hard questions)</option>
+                      <option value="local">Local (Ollama — on this PC only)</option>
                     </select>
                   </label>
+                  <p className="hint">
+                    {aiMode === "hybrid"
+                      ? "Hybrid keeps most chat on Ollama. Harder questions (long text, math, deep explain) use your cloud key when budget allows. If Ollama fails, one cloud retry is tried."
+                      : aiMode === "local"
+                        ? "All answers stay on this computer. No cloud API spend."
+                        : "All answers use your cloud provider. Soft daily budget still applies."}
+                  </p>
                 </div>
 
                 <div className="section">
@@ -365,12 +373,16 @@ export function ParentPanel({
                   ) : null}
                 </div>
 
-                <div className="section">
+                  <div className="section">
                   <h3>Local (Ollama)</h3>
                   <p className="hint">
                     GPU: {hardware?.gpu_name || "unknown"}{" "}
                     {hardware?.vram_gb != null ? `(${hardware.vram_gb} GB)` : "(CPU / no nvidia-smi)"}{" "}
                     · Ollama {hardware?.ollama_ok ? "online" : "offline"}
+                  </p>
+                  <p className="hint">
+                    Prefer a <strong>vision</strong> model (Qwen3.5 / Gemma 4, quantized) so the
+                    avatar can understand screenshots for computer-use. Text-only models cannot.
                   </p>
                   <div className="preset-row">
                     <button type="button" className="chip" onClick={() => onRefreshHardware?.()}>
@@ -385,6 +397,19 @@ export function ParentPanel({
                     Local model
                     <input value={localModel} onChange={(e) => setLocalModel(e.target.value)} />
                   </label>
+                  {!(
+                    /(?:^|[:/\-_])(?:vl|vision|llava|moondream|minicpm-v)(?:$|[:/\-_\d])/i.test(
+                      localModel
+                    ) ||
+                    localModel.toLowerCase().startsWith("qwen3.5") ||
+                    localModel.toLowerCase().startsWith("gemma4") ||
+                    localModel.toLowerCase().includes("gemma3")
+                  ) ? (
+                    <p className="hint" style={{ color: "#b45309" }}>
+                      This model name does not look vision-capable. Computer-use screenshots may
+                      fail — switch to Qwen3.5 or Gemma 4 below.
+                    </p>
+                  ) : null}
                   <div className="preset-row">
                     {catalog.map((item) => (
                       <button
@@ -394,7 +419,9 @@ export function ParentPanel({
                         title={`${item.notes || ""} [${item.fit}]`}
                         onClick={() => setLocalModel(item.ollama)}
                       >
-                        {item.label} · {item.fit}
+                        {item.selected_default ? "★ " : ""}
+                        {item.label}
+                        {item.vision === false ? " · text" : " · vision"} · {item.fit}
                       </button>
                     ))}
                   </div>

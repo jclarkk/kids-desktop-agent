@@ -63,6 +63,9 @@ export type AgentState = {
     ollama: string;
     fit: string;
     notes?: string;
+    vision?: boolean;
+    tools?: string;
+    selected_default?: boolean;
   }>;
   hardware?: {
     vram_gb?: number | null;

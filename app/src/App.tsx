@@ -18,6 +18,25 @@ declare global {
       minimize: () => Promise<void>;
       close: () => Promise<void>;
       resize: (width: number, height: number) => Promise<void>;
+      moveAside: () => Promise<void>;
+      openExternal: (url: string) => Promise<{ ok?: boolean; error?: string }>;
+      ollamaStatus: () => Promise<{ online?: boolean; models?: string[]; exe?: string | null }>;
+      ollamaInstall: (options?: {
+        pullModel?: string;
+      }) => Promise<{
+        ok?: boolean;
+        error?: string;
+        warning?: string;
+        installed?: boolean;
+        online?: boolean;
+        models?: string[];
+        modelPulled?: boolean;
+        openDownload?: boolean;
+      }>;
+      ollamaPull: (model: string) => Promise<{ ok?: boolean; error?: string; model?: string }>;
+      onOllamaProgress: (
+        handler: (payload: { stage?: string; message?: string; percent?: number }) => void
+      ) => () => void;
       backendStatus: () => Promise<{ running?: boolean; lastError?: string | null }>;
       restartBackend: () => Promise<{ running?: boolean; lastError?: string | null }>;
       onBackendStatus: (
@@ -50,7 +69,15 @@ export function App() {
   const [parentSettings, setParentSettings] = useState<ParentSettings | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<
-    Array<{ id: string; label: string; ollama: string; fit: string; notes?: string }>
+    Array<{
+      id: string;
+      label: string;
+      ollama: string;
+      fit: string;
+      notes?: string;
+      vision?: boolean;
+      selected_default?: boolean;
+    }>
   >([]);
   const [hardware, setHardware] = useState<{
     vram_gb?: number | null;
@@ -383,8 +410,9 @@ export function App() {
 
   return (
     <div className="shell" onContextMenu={(e) => e.preventDefault()}>
-      <div className="titlebar">
+      <div className="titlebar" title="Drag to move">
         <span className="drag">
+          <span className="drag-grip" aria-hidden="true" />
           <span
             className={`conn-dot ${conn === "open" ? "ok" : conn === "closed" ? "bad" : ""}`}
             title={connTitle}
@@ -392,6 +420,14 @@ export function App() {
           Kids Desktop Agent
         </span>
         <div className="window-actions">
+          <button
+            type="button"
+            className="icon-btn"
+            title="Move to the other side"
+            onClick={() => window.kda?.moveAside()}
+          >
+            ⇄
+          </button>
           <button
             type="button"
             className="icon-btn"
@@ -521,6 +557,9 @@ export function App() {
       <ParentSetupWizard
         open={setupOpen}
         message={setupMessage}
+        hardware={hardware}
+        catalog={catalog}
+        onRefreshHardware={() => socketRef.current?.send({ type: "refresh_hardware" })}
         onSubmit={(payload) => socketRef.current?.send({ type: "parent_setup", ...payload })}
       />
 

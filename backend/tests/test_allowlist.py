@@ -427,11 +427,25 @@ def test_resolve_voice_matches_manifest_for_each_gender():
 
 
 def test_catalog_recommends_default_for_common_vram_tiers():
+    from kids_agent.model_catalog import looks_like_vision_model
+
     for vram in (0, 4096, 8192, 12288, 24576):
         items = recommend_for_vram(vram if vram else None)
         assert items
         assert any("fit" in i for i in items)
-    assert default_model_for_vram(8192)
+        default = next(i for i in items if i.get("selected_default"))
+        assert default.get("vision") is True
+        assert looks_like_vision_model(default["ollama"])
+        assert default.get("quantized") is True
+
+    # Comfortable GPU → Qwen3.5 9B quantized; tight VRAM → 4B / E4B class.
+    assert default_model_for_vram(8192) == "qwen3.5:9b-q4_K_M"
+    low = default_model_for_vram(4096)
+    assert low in ("qwen3.5:4b-q4_K_M", "gemma4:e4b-it-qat")
+    assert looks_like_vision_model("qwen3.5:9b-q4_K_M")
+    assert looks_like_vision_model("gemma4:12b-it-qat")
+    assert looks_like_vision_model("gemma4:e4b-it-qat")
+    assert not looks_like_vision_model("qwen2.5:7b-instruct")
 
 
 def test_detect_vram_sync_returns_stable_keys():

@@ -22,30 +22,32 @@ backend/tests/       unit tests (no mic/GPU required)
 ### Runtime flow
 
 1. UI ↔ backend over local WebSocket (`ws://127.0.0.1:8765` by default).
-2. User text (or browser STT) → `EngineRouter` (`cloud` / `local` / `hybrid`).
-3. `engines/agent_loop.py` runs chat → tools → optional vision follow-up (multi-step).
-4. Skills in `skills/registry.py` validate allowlists / computer-use gates **in code**.
-5. Desktop control only via `os_adapter/` (`windows.py`, `macos.py`). Never call OS APIs from the LLM.
+2. User text (or browser STT) → `EngineRouter` (`cloud` / `local` / smart `hybrid`).
+3. Hybrid is **local-first**: heuristics pick cloud for hard turns; local errors can escalate once. Route sticks for the whole agent-loop turn (including computer-use resume).
+4. `engines/agent_loop.py` runs chat → tools → optional vision follow-up (multi-step).
+5. Skills in `skills/registry.py` validate allowlists / computer-use gates **in code**.
+6. Desktop control only via `os_adapter/` (`windows.py`, `macos.py`). Never call OS APIs from the LLM.
 
 ### Important modules
 
 | Path | Role |
 |------|------|
 | `server.py` | WebSocket dispatch, parent PIN/session/setup, content filter, computer-use approve/resume, games, onboarding |
-| `config.py` | `AppConfig` schema (kids, allowlist, `computer_use`, identity, cloud/local) |
+| `config.py` | `AppConfig` schema (kids, allowlist, `computer_use`, identity, cloud/local/`hybrid`) |
 | `skills/registry.py` | Tool schemas + handlers (`SkillResult`) |
 | `computer_use.py` | PIN gate: `off` / `ask` / `session`, emergency stop |
 | `vision.py` | Screenshot JPEG downscale, OpenAI/Ollama image messages, click coord mapping |
 | `engines/agent_loop.py` | Multi-turn tool + vision loop; pause when PIN needed |
 | `engines/cascade_cloud.py` | OpenAI-compatible chat + tools |
 | `engines/local_ollama.py` | Ollama chat + tools (+ `images` for vision) |
-| `engines/router.py` | Mode routing; `dialect()` → `openai` \| `ollama` |
+| `engines/hybrid_policy.py` | Pure hybrid heuristics (`choose_route` / `should_escalate`) |
+| `engines/router.py` | Mode routing + per-turn hybrid sticky route; `dialect()` → `openai` \| `ollama` |
 | `prompts.py` | Age + English-level system prompt; computer-use vision instructions |
 | `identity.py` | Name match, face aHash enroll/match (local files under `data/kids/`) |
 | `games.py` / `usage.py` / `budget.py` | Mini-games, daily minutes, soft cloud spend |
 | `safety.py` | PIN hash/verify, transcript logger + retention purge |
 | `content_filter.py` | Local kid-safety rules + best-effort provider moderation |
-| `hardware.py` / `model_catalog.py` | VRAM / Apple unified memory probe + catalog |
+| `hardware.py` / `model_catalog.py` | VRAM / Apple unified memory probe + **vision-first** Ollama catalog (Qwen3.5 9B / Gemma4 12B quantized; low-VRAM 4B / E4B) |
 
 ### Kid identity & onboarding
 
@@ -55,6 +57,14 @@ backend/tests/       unit tests (no mic/GPU required)
 - “Who is playing?”: tap, say-your-name (STT → local name match), soft face-hash.
 - Biometrics under `data/kids/<id>/` (gitignored). Parent toggles in `identity` config.
 - Face match is a friendly hint (perceptual hash), **not** security-grade auth.
+
+### First-run parent setup (packaged installs)
+
+- When `needs_parent_setup` (no PIN hash yet), `ParentSetupWizard` blocks the kid UI.
+- Steps: welcome → PIN → AI mode (cloud / local / hybrid) → cloud API key (OpenRouter / OpenAI / Gemini) and/or Ollama detect/install → daily limit → finish.
+- WebSocket `parent_setup` persists PIN (hashed), cloud/local settings, `default_daily_limit_minutes`; computer-use stays `off`.
+- NSIS installs the app only; credentials and Ollama are collected on first launch (live `hardware.ollama_ok` probe), not inside the Windows installer pages.
+- **Windows Ollama install:** Electron IPC `ollama:install` (`app/electron/ollamaInstall.cjs`) downloads official `OllamaSetup.exe`, runs it silently, waits for the API, optionally pulls the selected model. Manual download remains as fallback.
 
 ## Safety invariants (do not break)
 
@@ -94,6 +104,7 @@ When building an installer, parents must be able to **opt in/out** of heavy extr
 - Copy `config/config.example.json` → `config/config.local.json`.
 - Env overrides: `KDA_API_KEY`, `KDA_WS_HOST`, `KDA_WS_PORT`, `KDA_CONFIG`.
 - Useful `computer_use` knobs: `mode`, `session_ttl_minutes`, `vision_max_side`, `vision_jpeg_quality`, `max_agent_steps`.
+- Useful `hybrid` knobs: `long_input_words`, `cloud_keywords` (empty → built-in list), `escalate_on_error`.
 
 ## How to run
 
@@ -144,6 +155,7 @@ Backend → UI: `state`, `assistant_reply`, `avatar_state`, `parent_*_result`, `
 - **Python:** type hints, `async` for I/O, package under `kids_agent/`. Prefer small pure functions for allowlist / vision / PIN logic (easy to test).
 - **TypeScript/React:** functional components; keep the avatar window thin — state from WebSocket events.
 - **Kid UI contract:** the home screen is avatar + subtitles + push-to-talk only (`App.tsx`, `usePushToTalk.ts`). Everything else lives in `KidMenu.tsx` (no PIN: friend/voice, games, kid switch, talk key) or `ParentPanel.tsx` (PIN). Assistant speech must always render as subtitles (`onSubtitle` in `speak.ts`) for accessibility. Parent settings grow the Electron window via `window.kda.resize` IPC.
+- **Overlay z-order:** avatar floats above normal apps (`floating` level via `app/electron/overlayPolicy.cjs`), not above games/fullscreen — never use Electron `screen-saver` always-on-top or macOS `visibleOnFullScreen`.
 - **Parent PIN:** dev default is `1234` (`config.py`, `config.example.json`); installed builds must collect a PIN during setup (`docs/installer-components.json` → `parent_pin_setup`). Never ship a default PIN in installers.
 - **Commits:** do not commit secrets; keep PRs focused; update this file when architecture changes.
 

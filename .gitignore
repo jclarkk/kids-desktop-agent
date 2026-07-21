@@ -1,0 +1,81 @@
+# Secrets & local config (never commit)
+.env
+.env.*
+!.env.example
+config/config.local.json
+config/user/
+*.pem
+*.key
+
+# Privacy: transcripts, captures, PIN-protected runtime data
+data/
+logs/
+transcripts/
+*.transcript.jsonl
+screenshots/
+captures/
+app/e2e/.fixture/
+app/test-results/
+app/playwright-report/
+*.wav
+*.mp3
+*.ogg
+!assets/**/*.wav
+!assets/**/*.mp3
+
+# Model weights & caches
+models/
+*.gguf
+*.bin
+*.onnx
+!assets/**/*.onnx
+.cache/
+huggingface/
+whisper/
+kokoro/
+ollama/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist-python/
+
+# Node / Electron
+node_modules/
+app/node_modules/
+app/dist/
+app/out/
+app/release/
+*.asar
+.npm
+.eslintcache
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+*.swp
+*.swo
+*~
+
+# Keep shared Cursor project rules; ignore personal agent state
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
+
+# Temp
+tmp/
+temp/
+*.log
+npm-debug.log*
+yarn-error.log*

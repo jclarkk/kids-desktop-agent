@@ -1,13 +1,17 @@
-const { app, BrowserWindow, ipcMain, screen } = require("electron");
+const { app, BrowserWindow, ipcMain, screen, shell } = require("electron");
 const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const ollamaInstall = require("./ollamaInstall.cjs");
+const { attachOverlayPolicy } = require("./overlayPolicy.cjs");
 let autoUpdater = null;
 try {
   autoUpdater = require("electron-updater").autoUpdater;
 } catch {
   autoUpdater = null;
 }
+
+let ollamaInstallBusy = false;
 
 const isDev = !app.isPackaged;
 let backendProcess = null;
@@ -100,6 +104,13 @@ function setupAutoUpdater() {
   });
 }
 
+function appIconPath() {
+  // Packaged builds get the icon baked into the executable by electron-builder;
+  // this covers the dev window / taskbar.
+  const png = path.join(__dirname, "..", "build", "icon.png");
+  return fs.existsSync(png) ? png : undefined;
+}
+
 function createAvatarWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   const win = new BrowserWindow({
@@ -107,6 +118,7 @@ function createAvatarWindow() {
     height: 640,
     x: width - 340,
     y: Math.max(20, height - 680),
+    icon: appIconPath(),
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -120,10 +132,8 @@ function createAvatarWindow() {
     },
   });
 
-  win.setAlwaysOnTop(true, "screen-saver");
-  if (process.platform === "darwin") {
-    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  }
+  // Float above normal apps; yield for games / fullscreen (see overlayPolicy).
+  attachOverlayPolicy(win);
 
   if (isDev) {
     win.loadURL("http://127.0.0.1:5173");
@@ -172,6 +182,78 @@ ipcMain.handle("window:resize", (event, width, height) => {
   const x = Math.max(workArea.x, bounds.x + bounds.width - w);
   const y = Math.max(workArea.y, Math.min(bounds.y, workArea.y + workArea.height - h));
   win.setBounds({ x, y, width: w, height: h }, true);
+});
+
+// Flip to the other side of the screen so something underneath is reachable.
+ipcMain.handle("window:moveAside", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return;
+  const bounds = win.getBounds();
+  const workArea = screen.getDisplayMatching(bounds).workArea;
+  const margin = 20;
+  const maxX = workArea.x + workArea.width - bounds.width - margin;
+  const minX = workArea.x + margin;
+  const centerX = bounds.x + bounds.width / 2;
+  const mid = workArea.x + workArea.width / 2;
+  const x = centerX >= mid ? minX : Math.max(minX, maxX);
+  const y = Math.min(
+    Math.max(workArea.y + margin, bounds.y),
+    workArea.y + workArea.height - bounds.height - margin,
+  );
+  win.setBounds({ x, y, width: bounds.width, height: bounds.height }, true);
+});
+
+ipcMain.handle("shell:openExternal", async (_event, url) => {
+  const raw = String(url || "").trim();
+  if (!raw.startsWith("https://") && !raw.startsWith("http://")) {
+    return { ok: false, error: "Only http(s) URLs are allowed." };
+  }
+  await shell.openExternal(raw);
+  return { ok: true };
+});
+
+ipcMain.handle("ollama:status", async () => ollamaInstall.probeOllama());
+
+ipcMain.handle("ollama:install", async (event, options = {}) => {
+  if (ollamaInstallBusy) {
+    return { ok: false, error: "Ollama install is already running." };
+  }
+  ollamaInstallBusy = true;
+  const pullModelName = String(options.pullModel || "").trim() || undefined;
+  const sendProgress = (payload) => {
+    try {
+      event.sender.send("ollama:progress", payload);
+    } catch {
+      // sender may have gone away
+    }
+  };
+  try {
+    const result = await ollamaInstall.installWindows({
+      pullModelName,
+      onProgress: sendProgress,
+    });
+    if (result.openDownload) {
+      try {
+        await shell.openExternal("https://ollama.com/download");
+      } catch {
+        // ignore
+      }
+    }
+    return result;
+  } finally {
+    ollamaInstallBusy = false;
+  }
+});
+
+ipcMain.handle("ollama:pull", async (event, model) => {
+  const sendProgress = (payload) => {
+    try {
+      event.sender.send("ollama:progress", payload);
+    } catch {
+      // ignore
+    }
+  };
+  return ollamaInstall.pullModel(model, sendProgress);
 });
 
 ipcMain.handle("backend:status", () => backendStatus);

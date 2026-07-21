@@ -59,7 +59,7 @@ Fallback without extras: browser speech recognition + enhanced browser/OS neural
 | **Parent label** | Local AI brain (Ollama) |
 | **Default** | Off |
 | **Size** | Ollama app + model (often 4–8GB+) |
-| **Install** | External: [ollama.com](https://ollama.com), then `ollama pull …` from `model_catalog.py` |
+| **Install** | **Windows first-run:** `Install Ollama` in `ParentSetupWizard` downloads official `OllamaSetup.exe` (silent) via `app/electron/ollamaInstall.cjs`, optionally `ollama pull` of a **quantized vision** model (default `qwen3.5:9b-q4_K_M`; low VRAM `qwen3.5:4b-q4_K_M` / `gemma4:e4b-it-qat`). Fallback: manual [ollama.com/download](https://ollama.com/download). |
 | **Detect** | `http://127.0.0.1:11434/api/tags` / `hardware.ollama_ok` |
 | **If skipped** | Cloud or hybrid with API key |
 
@@ -108,6 +108,9 @@ Fallback without extras: browser speech recognition + enhanced browser/OS neural
 | Id | Step | Notes |
 |----|------|-------|
 | `parent_pin_setup` | **Choose a parent PIN** | Min 4 digits, stored hashed (`safety.set_pin`). Installed builds must NOT ship a default PIN. Dev default is `1234` (README). |
+| `ai_runtime_setup` | **Choose AI mode + credentials** | First-launch `ParentSetupWizard`: cloud (OpenRouter / OpenAI / Gemini key), local (Ollama download + model), or hybrid. Blocks kid UI until saved. |
+
+**Today (packaged Windows):** the NSIS `.exe` installs the app; **first launch** runs the multi-step parent setup before kids can play. That is intentional — Ollama and API keys are easier to collect in-app (with live Ollama probe) than inside NSIS custom pages.
 
 ## Dev install (today, until the GUI installer exists)
 

@@ -22,7 +22,7 @@
   },
   "local": {
     "llm_runtime": "ollama",
-    "llm_model": "qwen2.5:14b-instruct-q4_K_M",
+    "llm_model": "qwen3.5:9b-q4_K_M",
     "ollama_base_url": "http://127.0.0.1:11434",
     "gpu_layers": "auto",
     "allow_offload": true,
@@ -30,6 +30,11 @@
     "tts_voice_male": "am_michael",
     "tts_voice_female": "af_heart",
     "tts_voice_neutral": "af_bella"
+  },
+  "hybrid": {
+    "long_input_words": 40,
+    "cloud_keywords": [],
+    "escalate_on_error": true
   },
   "avatar": {
     "pack_id": "starter",

@@ -174,12 +174,32 @@ async def test_parent_setup_required_when_no_pin(isolated_data, fake_os, stub_en
                 "onboard_kid_result",
             )
             assert blocked["ok"] is False
+            missing_key = await client.request(
+                {"type": "parent_setup", "pin": "2468", "ai_mode": "cloud"},
+                "parent_setup_result",
+            )
+            assert missing_key["ok"] is False
             ok = await client.request(
-                {"type": "parent_setup", "pin": "2468", "ai_mode": "local"},
+                {
+                    "type": "parent_setup",
+                    "pin": "2468",
+                    "ai_mode": "hybrid",
+                    "api_key": "test-key-1234",
+                    "provider": "openrouter",
+                    "base_url": "https://openrouter.ai/api/v1",
+                    "chat_model": "google/gemini-2.5-flash",
+                    "llm_model": "qwen3.5:9b-q4_K_M",
+                    "ollama_base_url": "http://127.0.0.1:11434",
+                    "daily_limit_minutes": 45,
+                },
                 "parent_setup_result",
             )
             assert ok["ok"] is True
             assert verify_pin(server.config, "2468")
+            assert server.config.ai_mode == "hybrid"
+            assert server.config.cloud.api_key == "test-key-1234"
+            assert server.config.local.llm_model == "qwen3.5:9b-q4_K_M"
+            assert server.config.default_daily_limit_minutes == 45
             state = await client.recv_until("state")
             assert state["needs_parent_setup"] is False
 

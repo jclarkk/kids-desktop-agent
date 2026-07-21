@@ -87,11 +87,18 @@
       "install": {
         "external_app": {
           "name": "Ollama",
-          "url": "https://ollama.com",
+          "url": "https://ollama.com/download",
+          "windows_first_run": {
+            "ipc": "ollama:install",
+            "download": "https://ollama.com/download/OllamaSetup.exe",
+            "silent_flags": ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-"],
+            "optional_pull": "ollama pull <selected model>",
+            "module": "app/electron/ollamaInstall.cjs"
+          },
           "after_install_commands": [
-            "ollama pull qwen2.5:7b-instruct"
+            "ollama pull qwen3.5:9b-q4_K_M"
           ],
-          "catalog": "backend/kids_agent/model_catalog.py — offer VRAM-appropriate default"
+          "catalog": "backend/kids_agent/model_catalog.py — vision-first quantized defaults: qwen3.5:9b-q4_K_M / gemma4:12b-it-qat; low VRAM: qwen3.5:4b-q4_K_M / gemma4:e4b-it-qat"
         }
       },
       "config_hooks": {
@@ -144,7 +151,13 @@
       "id": "parent_pin_setup",
       "parent_label": "Choose a parent PIN",
       "parent_summary": "Protects grown-up settings and computer-use approval. Required — no default PIN in installed builds.",
-      "notes": "Dev/run-from-source default is 1234 (see README). Installer must collect a PIN (min 4 digits) and store it hashed via set_pin()."
+      "notes": "Dev/run-from-source default is 1234 (see README). Collected in first-launch ParentSetupWizard via parent_setup WebSocket; store hashed via set_pin()."
+    },
+    {
+      "id": "ai_runtime_setup",
+      "parent_label": "Choose how the AI runs",
+      "parent_summary": "Cloud (OpenRouter / OpenAI / Gemini API key), local Ollama, or hybrid — plus daily play limit.",
+      "notes": "Implemented as first-launch ParentSetupWizard (blocks kid UI). Cloud requires api_key; local offers Ollama download link + hardware.ollama_ok probe. NSIS installs the app only; credentials and Ollama are collected after install on first run."
     }
   ],
   "installer_ui_notes": [
@@ -153,7 +166,7 @@
     "Core is always on and not uncheckable.",
     "If kokoro_tts is unchecked, still ship enhanced browser TTS (no extra install).",
     "Dev packages (pytest, Playwright, requirements-dev.txt) must NOT appear in the parent installer.",
-    "After install, run probe_speech_capabilities() / hardware detect and show a simple Ready checklist."
+    "After install, first launch runs ParentSetupWizard (PIN + AI mode + keys/Ollama). Also run probe_speech_capabilities() / hardware detect for a Ready checklist."
   ],
   "not_for_parent_installer": [
     {

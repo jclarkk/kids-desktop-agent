@@ -50,7 +50,7 @@ class CloudConfig(BaseModel):
 
 class LocalConfig(BaseModel):
     llm_runtime: str = "ollama"
-    llm_model: str = "qwen2.5:14b-instruct-q4_K_M"
+    llm_model: str = "qwen3.5:9b-q4_K_M"
     ollama_base_url: str = "http://127.0.0.1:11434"
     gpu_layers: str | int = "auto"
     stt_model: str = "small"
@@ -58,6 +58,15 @@ class LocalConfig(BaseModel):
     tts_voice_female: str = "af_heart"
     tts_voice_neutral: str = "af_bella"
     allow_offload: bool = True
+
+
+class HybridConfig(BaseModel):
+    """Local-first hybrid routing knobs (used when ai_mode == hybrid)."""
+
+    long_input_words: int = 40
+    # Empty list → engines.hybrid_policy.DEFAULT_CLOUD_KEYWORDS
+    cloud_keywords: list[str] = Field(default_factory=list)
+    escalate_on_error: bool = True
 
 
 class AvatarConfig(BaseModel):
@@ -136,9 +145,12 @@ class AppConfig(BaseModel):
     parent_pin: str = "1234"
     parent_pin_hash: str | None = None
     ai_mode: Literal["cloud", "local", "hybrid"] = "cloud"
+    # Applied to new kids when onboarding does not send a limit.
+    default_daily_limit_minutes: int = 60
     websocket: WebSocketConfig = Field(default_factory=WebSocketConfig)
     cloud: CloudConfig = Field(default_factory=CloudConfig)
     local: LocalConfig = Field(default_factory=LocalConfig)
+    hybrid: HybridConfig = Field(default_factory=HybridConfig)
     avatar: AvatarConfig = Field(default_factory=AvatarConfig)
     kids: list[KidProfile] = Field(default_factory=list)
     active_kid_id: str | None = None

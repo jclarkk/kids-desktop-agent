@@ -34,8 +34,9 @@ copy config\config.example.json config\config.local.json
 Edit `config.local.json` and set `cloud.api_key` (or use env `KDA_API_KEY`). **Never commit** that file.
 
 **Parent PIN:** in dev / run-from-source mode the default PIN is **`1234`** — change it under
-Parent settings → Safety & PIN after first unlock (stored hashed). The future installer will
-ask the parent to define a PIN during setup instead of shipping a default.
+Parent settings → Safety & PIN after first unlock (stored hashed). Packaged installs have **no**
+default PIN: first launch opens a multi-step parent setup (PIN, cloud/local/hybrid, API key or
+Ollama, daily limit) before kids can play.
 
 ### 2. Backend
 
@@ -102,8 +103,8 @@ Install Ollama (Metal). The backend estimates usable unified memory from system 
 | Mode | Behavior |
 |------|----------|
 | **Cloud** | OpenAI-compatible chat (OpenRouter / OpenAI / Gemini-compatible base URL) |
-| **Local** | Ollama chat API |
-| **Hybrid** | Cloud LLM when an API key is set, otherwise local |
+| **Local** | Ollama chat API — stays on this PC |
+| **Hybrid** | Local-first: Ollama answers most turns; harder questions (long text, math, deep explain) use your cloud key when budget allows. If Ollama fails, one cloud retry is tried. |
 
 Parent settings expose model presets, a soft **daily cloud budget**, content filtering, and a VRAM/unified-memory catalog for local picks.
 
@@ -185,7 +186,7 @@ Live LLM/API calls, real desktop click/screenshot, browser SpeechRecognition, El
 - Dev: `npm run dev` (Vite + Electron).
 - CI: GitHub Actions runs backend tests and app typecheck/e2e on PRs.
 - Windows beta release: push a `v*` tag or run the release workflow manually. GitHub Actions freezes the Python backend, builds the Electron NSIS installer, and uploads the `.exe` to the GitHub Releases tab.
-- Packaged Windows builds store config/data under the app data folder and require parent PIN setup on first launch. The dev default PIN is not used in installed first-run.
+- Packaged Windows builds store config/data under the app data folder and require first-launch parent setup (PIN + AI mode + OpenRouter/OpenAI/Gemini key and/or Ollama). Local mode can **Install Ollama** (official silent Windows installer + optional model pull) from that wizard. The dev default PIN is not used in installed first-run.
 - Installers are unsigned until code-signing secrets are configured.
 
 ## License
